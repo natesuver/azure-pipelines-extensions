@@ -163,7 +163,7 @@ function Get-Netsh-Command {
             $addressType = "Hostname:port"
         }
 
-        $showCertCmd = [string]::Format("http show sslcert {2}={0}:{1}", $hostname, $port,$keyName)
+        $showCertCmd = [string]::Format("http show sslcert {2}={0}:{1}", $hostOrIp, $port,$keyName)
         Write-Verbose "Checking if SslCert binding is already present. Running command : netsh $showCertCmd"
 
         $result = Invoke-VstsTool -Filename "netsh" -Arguments $showCertCmd
