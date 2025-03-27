@@ -167,9 +167,9 @@ function Get-Netsh-Command {
         Write-Verbose "Checking if SslCert binding is already present. Running command : netsh $showCertCmd"
 
         $result = Invoke-VstsTool -Filename "netsh" -Arguments $showCertCmd
-        $certificateHash = $result | Where { $_.Contains("Certificate Hash") } | Select -First 1
-        $address = $result | Where { $_.Contains($addressType) } | Select -First 1
-        $applicationId = $result | Where { $_.Contains("Application ID") } | Select -First 1
+        $certificateHash = $result | Where-Object { $_.Contains("Certificate Hash") } | Select-Object -First 1
+        $address = $result | Where-Object { $_.Contains($addressType) } | Select-Object -First 1
+        $applicationId = $result | Where-Object { $_.Contains("Application ID") } | Select-Object -First 1
 
         if ([string]::IsNullOrEmpty($address)) { #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
             return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid='{{{3}}}' certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
