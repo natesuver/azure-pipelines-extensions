@@ -171,13 +171,24 @@ function Get-Netsh-Command {
         $address = $result | Where-Object { $_.Contains($addressType) } | Select-Object -First 1
         $applicationId = $result | Where-Object { $_.Contains("Application ID") } | Select-Object -First 1
 
-        if ([string]::IsNullOrEmpty($address)) { #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
+        if ([string]::IsNullOrEmpty($address)) 
+        { 
+            #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
             return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid='{{{3}}}' certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
-        } elseif (-not $certificateHash.ToLower().Contains($newCertHash.ToLower())) { # case 2: existing binding found, but thumbprint of incoming cert does not match. run netsh UPDATE command. note that we must use the existing application id in this case.
-            $applicationId = $applicationId.Split(":")[1].Trim();
-            return [string]::Format("http update sslcert {4}={0}:{1} certhash={2} appid='{3}' certstorename=MY", $hostOrIp, $port, $certhash, $applicationId, $keyName) #TODO: this won't work with older versions of netsh, add something here to check the netsh version.
         } 
-        return [string]::Empty #Case 3: the certificate bound to this host/ip and port has the same thumbprint as the new certificate.  Do nothing.
+        elseif (-not $certificateHash.ToLower().Contains($newCertHash.ToLower())) 
+        { 
+            # case 2: existing binding found, but thumbprint of incoming cert does not match. 
+            # run netsh UPDATE command. note that we must use the existing application id in this case.
+            $applicationId = $applicationId.Split(":")[1].Trim();
+
+            #TODO: this won't work with older versions of netsh, add something here to check the netsh version.
+            # Requires two brackets around appId instead of three as a set are included in parsed variable
+            return [string]::Format("http update sslcert {4}={0}:{1} certhash={2} appid='{3}' certstorename=MY", $hostOrIp, $port, $certhash, $applicationId, $keyName) 
+        } 
+        
+        #Case 3: the certificate bound to this host/ip and port has the same thumbprint as the new certificate.  Do nothing.
+        return [string]::Empty 
 }
 function Add-SslCert
 {
