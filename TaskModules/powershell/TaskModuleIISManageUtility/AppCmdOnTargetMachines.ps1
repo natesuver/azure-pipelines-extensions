@@ -190,6 +190,7 @@ function Get-Netsh-Command {
         #Case 3: the certificate bound to this host/ip and port has the same thumbprint as the new certificate.  Do nothing.
         return [string]::Empty 
 }
+
 function Add-SslCert
 {
     param(
@@ -211,14 +212,18 @@ function Add-SslCert
     {
         $ipAddress = "0.0.0.0"
     }
+
     $certCmd = [string]::Empty
-    $port  = "ipport"
+    $portKeyName  = "ipport"
+
     #SNI is supported IIS 8 and above. To enable SNI hostnameport option should be used
     if($sni -eq "true" -and $iisVersion -ge 8 -and -not [string]::IsNullOrWhiteSpace($hostname))
     {
-        $port = "hostnameport"
+        $portKeyName = "hostnameport"
     }
-    $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $port -hostOrIp $hostname
+    
+    $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $portKeyName -hostOrIp $ipAddress
+
     if(-not $certCmd)
     {
         Write-Verbose "SSL cert binding with the specified certificate is already present. Returning"
