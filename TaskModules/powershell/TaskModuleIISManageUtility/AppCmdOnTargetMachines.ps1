@@ -157,21 +157,40 @@ function Get-Netsh-Command {
         [string]$hostOrIp,
         [string]$keyName
     )
-        $showCertCmd = [string]::Format("http show sslcert {2}={0}:{1}", $hostname, $port,$keyName)
+        $addressType = "IP:port"
+
+        if($keyName -eq "hostnameport"){
+            $addressType = "Hostname:port"
+        }
+
+        $showCertCmd = [string]::Format("http show sslcert {2}={0}:{1}", $hostOrIp, $port,$keyName)
         Write-Verbose "Checking if SslCert binding is already present. Running command : netsh $showCertCmd"
 
         $result = Invoke-VstsTool -Filename "netsh" -Arguments $showCertCmd
-        $certificateHash = $result | Where { $_.Contains("Certificate Hash") } | Select -First 1
-        $hostnamePort = $result | Where { $_.Contains("Hostname:port") } | Select -First 1
-        $applicationId = $result | Where { $_.Contains("Application ID") } | Select -First 1
-        if ([string]::IsNullOrEmpty($hostnamePort)) { #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
-            return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid='{{{3}}}' certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
-        } elseif (-not $certificateHash.ToLower().Contains($newCertHash.ToLower())) { # case 2: existing binding found, but thumbprint of incoming cert does not match. run netsh UPDATE command. note that we must use the existing application id in this case.
-            $applicationId = $applicationId.Split(":")[1].Trim();
-            return [string]::Format("http update sslcert {4}={0}:{1} certhash={2} appid='{3}' certstorename=MY", $hostOrIp, $port, $certhash, $applicationId, $keyName) #TODO: this won't work with older versions of netsh, add something here to check the netsh version.
+        $certificateHash = $result | Where-Object { $_.Contains("Certificate Hash") } | Select-Object -First 1
+        $address = $result | Where-Object { $_.Contains($addressType) } | Select-Object -First 1
+        $applicationId = $result | Where-Object { $_.Contains("Application ID") } | Select-Object -First 1
+
+        if ([string]::IsNullOrEmpty($address)) 
+        { 
+            #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
+            return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid={{{3}}} certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
         } 
-        return [string]::Empty #Case 3: the certificate bound to this host/ip and port has the same thumbprint as the new certificate.  Do nothing.
+        elseif (-not $certificateHash.ToLower().Contains($newCertHash.ToLower())) 
+        { 
+            # case 2: existing binding found, but thumbprint of incoming cert does not match. 
+            # run netsh UPDATE command. note that we must use the existing application id in this case.
+            $applicationId = $applicationId.Split(":")[1].Trim();
+
+            #TODO: this won't work with older versions of netsh, add something here to check the netsh version.
+            # Requires two brackets around appId instead of three as a set are included in parsed variable
+            return [string]::Format("http update sslcert {4}={0}:{1} certhash={2} appid='{3}' certstorename=MY", $hostOrIp, $port, $certhash, $applicationId, $keyName) 
+        } 
+        
+        #Case 3: the certificate bound to this host/ip and port has the same thumbprint as the new certificate.  Do nothing.
+        return [string]::Empty 
 }
+
 function Add-SslCert
 {
     param(
@@ -193,14 +212,21 @@ function Add-SslCert
     {
         $ipAddress = "0.0.0.0"
     }
+
     $certCmd = [string]::Empty
-    $port  = "ipport"
+    $portKeyName  = "ipport"
+
     #SNI is supported IIS 8 and above. To enable SNI hostnameport option should be used
     if($sni -eq "true" -and $iisVersion -ge 8 -and -not [string]::IsNullOrWhiteSpace($hostname))
     {
-        $port = "hostnameport"
+        $portKeyName = "hostnameport"
+        $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $portKeyName -hostOrIp $hostname
     }
-    $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $port -hostOrIp $hostname
+    else 
+    {
+        $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $portKeyName -hostOrIp $ipAddress
+    }
+
     if(-not $certCmd)
     {
         Write-Verbose "SSL cert binding with the specified certificate is already present. Returning"
@@ -208,7 +234,7 @@ function Add-SslCert
     }
 
     Write-Verbose "Setting SslCert for website: $certCmd"
-    $result = Invoke-VstsTool -Filename "netsh" -Arguments $certCmd -RequireExitCodeZero
+    $result = Invoke-VstsTool -Filename "netsh" -Arguments $certCmd
     Write-Verbose "$certCmd executed with result: $result"
 }
 
