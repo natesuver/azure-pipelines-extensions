@@ -174,7 +174,7 @@ function Get-Netsh-Command {
         if ([string]::IsNullOrEmpty($address)) 
         { 
             #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
-            return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid='{{{3}}}' certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
+            return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid={{{3}}} certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
         } 
         elseif (-not $certificateHash.ToLower().Contains($newCertHash.ToLower())) 
         { 
