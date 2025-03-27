@@ -220,9 +220,12 @@ function Add-SslCert
     if($sni -eq "true" -and $iisVersion -ge 8 -and -not [string]::IsNullOrWhiteSpace($hostname))
     {
         $portKeyName = "hostnameport"
+        $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $portKeyName -hostOrIp $hostname
     }
-    
+    else 
+    {
     $certCmd = Get-Netsh-Command -port $port -newCertHash $certhash -keyName $portKeyName -hostOrIp $ipAddress
+    }
 
     if(-not $certCmd)
     {
