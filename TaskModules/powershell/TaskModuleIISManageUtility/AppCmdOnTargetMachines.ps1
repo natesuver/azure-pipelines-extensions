@@ -168,9 +168,10 @@ function Get-Netsh-Command {
 
         $result = Invoke-VstsTool -Filename "netsh" -Arguments $showCertCmd
         $certificateHash = $result | Where { $_.Contains("Certificate Hash") } | Select -First 1
-        $hostnamePort = $result | Where { $_.Contains($addressType) } | Select -First 1
+        $address = $result | Where { $_.Contains($addressType) } | Select -First 1
         $applicationId = $result | Where { $_.Contains("Application ID") } | Select -First 1
-        if ([string]::IsNullOrEmpty($hostnamePort)) { #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
+
+        if ([string]::IsNullOrEmpty($address)) { #case 1: Existing binding not found.  Run the netsh ADD command to bind the certificate.
             return [string]::Format("http add sslcert {4}={0}:{1} certhash={2} appid='{{{3}}}' certstorename=MY", $hostOrIp, $port, $certhash, [System.Guid]::NewGuid().toString(), $keyName)
         } elseif (-not $certificateHash.ToLower().Contains($newCertHash.ToLower())) { # case 2: existing binding found, but thumbprint of incoming cert does not match. run netsh UPDATE command. note that we must use the existing application id in this case.
             $applicationId = $applicationId.Split(":")[1].Trim();
